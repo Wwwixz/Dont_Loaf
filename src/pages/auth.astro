@@ -1,0 +1,13 @@
+---
+import Layout from '../layouts/Layout.astro';
+import AuthPanel from '../components/AuthPanel';
+
+const modeParam = Astro.url.searchParams.get('mode');
+const initialMode = modeParam === 'login' ? 'login' : 'register';
+---
+
+<Layout title="DontLoaf — Вход и регистрация">
+  <main class="flex min-h-screen items-center justify-center bg-gradient-glow px-4 py-10">
+    <AuthPanel client:load initialMode={initialMode} />
+  </main>
+</Layout>

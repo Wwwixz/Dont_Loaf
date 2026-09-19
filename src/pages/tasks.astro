@@ -1,0 +1,12 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Sidebar from '../components/Sidebar';
+import TaskList from '../components/TaskList';
+---
+
+<Layout title="DontLoaf — Задачи">
+  <main class="flex min-h-screen bg-bg">
+    <Sidebar client:load />
+    <TaskList client:load />
+  </main>
+</Layout>
