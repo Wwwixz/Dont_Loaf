@@ -1,7 +1,8 @@
 # Deploying to Vercel
 
 The root [vercel.json](./vercel.json) defines the Astro frontend and FastAPI
-backend as Vercel services and routes requests to them.
+backend as Vercel services, sets the Python application entrypoint, and routes
+requests to them.
 
 Before deploying, configure these environment variables for the backend in
 Vercel:
