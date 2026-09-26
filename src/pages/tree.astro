@@ -1,0 +1,12 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Sidebar from '../components/Sidebar';
+import TaskTree from '../components/TaskTree';
+---
+
+<Layout title="DontLoaf — Дерево задач">
+  <main class="flex min-h-screen bg-bg">
+    <Sidebar client:load active="tree" />
+    <TaskTree client:load />
+  </main>
+</Layout>

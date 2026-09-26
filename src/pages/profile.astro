@@ -1,0 +1,12 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Sidebar from '../components/Sidebar';
+import Profile from '../components/Profile';
+---
+
+<Layout title="DontLoaf — Профиль">
+  <main class="flex min-h-screen bg-bg">
+    <Sidebar client:load active="profile" />
+    <Profile client:load />
+  </main>
+</Layout>

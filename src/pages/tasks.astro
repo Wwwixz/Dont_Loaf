@@ -4,9 +4,9 @@ import Sidebar from '../components/Sidebar';
 import TaskList from '../components/TaskList';
 ---
 
-<Layout title="DontLoaf — Задачи">
+<Layout title="DontLoaf — Все задачи">
   <main class="flex min-h-screen bg-bg">
-    <Sidebar client:load />
+    <Sidebar client:load active="tasks" />
     <TaskList client:load />
   </main>
 </Layout>

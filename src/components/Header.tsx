@@ -6,13 +6,14 @@ const links = [
   { label: 'Главная', href: '/' },
   { label: 'Возможности', href: '#features' },
   { label: 'О нас', href: '#about' },
+  { label: 'Контакты', href: '#contacts' },
 ];
 
 export default function Header() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/60 bg-bg/80 backdrop-blur">
+    <header className="sticky top-0 z-50 border-b border-border bg-bg/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <a href="/">
           <Logo />
@@ -39,9 +40,9 @@ export default function Header() {
           </a>
           <a
             href="/auth?mode=register"
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-lg shadow-primary/20 transition-colors hover:bg-primary-hover"
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-primary-hover"
           >
-            Зарегистрироваться
+            Регистрация
           </a>
         </div>
 
@@ -56,14 +57,14 @@ export default function Header() {
       </div>
 
       {open && (
-        <div className="border-t border-border/60 px-6 py-4 md:hidden">
+        <div className="border-t border-border px-6 py-4 md:hidden">
           <nav className="flex flex-col gap-4">
             {links.map((link) => (
               <a key={link.label} href={link.href} className="text-sm text-text-muted hover:text-text">
                 {link.label}
               </a>
             ))}
-            <div className="mt-2 flex flex-col gap-3 border-t border-border/60 pt-4">
+            <div className="mt-2 flex flex-col gap-3 border-t border-border pt-4">
               <a href="/auth?mode=login" className="text-sm font-medium text-text-muted hover:text-text">
                 Войти
               </a>
@@ -71,7 +72,7 @@ export default function Header() {
                 href="/auth?mode=register"
                 className="rounded-lg bg-primary px-4 py-2 text-center text-sm font-medium text-white hover:bg-primary-hover"
               >
-                Зарегистрироваться
+                Регистрация
               </a>
             </div>
           </nav>

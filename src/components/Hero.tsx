@@ -1,72 +1,60 @@
-import { ArrowRight, Network, LineChart, Trophy } from 'lucide-react';
+import { ArrowRight, ListTodo, LineChart, Trophy, Smartphone } from 'lucide-react';
 
 const features = [
-  {
-    icon: Network,
-    title: 'Дерево задач',
-    description: 'Визуализируй свой прогресс в виде дерева',
-  },
-  {
-    icon: LineChart,
-    title: 'Статистика',
-    description: 'Следи за своей продуктивностью и результатами',
-  },
-  {
-    icon: Trophy,
-    title: 'Геймификация',
-    description: 'Зарабатывай достижения и не давай себе расслабиться',
-  },
+  { icon: ListTodo, title: 'Личные задачи', description: 'Разбивай большие задачи по частям для более лёгкого выполнения' },
+  { icon: LineChart, title: 'Аналитика', description: 'Следи за прогрессом и вовремя корректируй цели' },
+  { icon: Trophy, title: 'Мотивация', description: 'Награды и достижения удерживают тебя в потоке' },
+  { icon: Smartphone, title: 'Доступ с любого устройства', description: 'Синхронизация между телефоном и компьютером' },
 ];
 
 export default function Hero() {
   return (
     <section className="relative overflow-hidden bg-gradient-glow">
-      <div className="mx-auto grid max-w-6xl gap-12 px-6 pb-20 pt-16 md:grid-cols-2 md:items-center md:pt-24">
-        <div>
-          <h1 className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
-            Планируй.
-            <br />
-            Выполняй.
-            <br />
-            <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Развивайся.
-            </span>
-          </h1>
+      <div className="mx-auto max-w-6xl px-6 pb-16 pt-14">
+        <div className="grid gap-10 md:grid-cols-2 md:items-center">
+          <div>
+            <h1 className="text-4xl font-bold leading-tight tracking-tight text-text sm:text-5xl">
+              Планируй.
+              <br />
+              Выполняй.
+              <br />
+              <span className="text-primary">Достигай.</span>
+            </h1>
 
-          <p className="mt-6 max-w-md text-base text-text-muted">
-            DontLoaf — это твой личный помощник в мире задач. Организуй свои дела,
-            отслеживай прогресс и достигай целей. Без прокрастинации.
-          </p>
+            <p className="mt-6 max-w-md text-base text-text-muted">
+              DontLoaf — это твой личный помощник в мире задач. Организуй свой день,
+              отслеживай прогресс и достигай целей.
+            </p>
 
-          <a
-            href="/auth?mode=register"
-            className="mt-8 inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition-colors hover:bg-primary-hover"
-          >
-            Начать бесплатно
-            <ArrowRight size={18} />
-          </a>
-
-          <div id="features" className="mt-14 grid grid-cols-1 gap-6 sm:grid-cols-3">
-            {features.map(({ icon: Icon, title, description }) => (
-              <div key={title} className="flex flex-col gap-2">
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15 text-primary">
-                  <Icon size={18} />
-                </span>
-                <h3 className="text-sm font-semibold text-text">{title}</h3>
-                <p className="text-xs leading-relaxed text-text-muted">{description}</p>
-              </div>
-            ))}
+            <a
+              href="/auth?mode=register"
+              className="mt-8 inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white shadow-md transition-colors hover:bg-primary-hover"
+            >
+              Начать бесплатно
+              <ArrowRight size={18} />
+            </a>
           </div>
-        </div>
 
-        <div className="relative hidden md:block">
-          <div className="aspect-square w-full rounded-3xl border border-border/60 bg-surface/60 shadow-2xl shadow-black/40">
-            <div className="flex h-full w-full items-center justify-center rounded-3xl bg-gradient-to-br from-primary/10 via-transparent to-transparent p-10 text-center text-text-muted">
+          <div className="relative hidden overflow-hidden rounded-3xl border border-border bg-surface shadow-xl md:block">
+            <div className="flex aspect-[4/3] w-full items-center justify-center bg-gradient-to-br from-primary/10 via-surface to-surface p-10 text-center text-text-muted">
               <p className="text-sm">
-                Иллюстрация: путник у дерева под луной — символ спокойного, вдумчивого прогресса.
+                Иллюстрация: путник любуется горами на рассвете — метафора спокойного,
+                уверенного движения к цели.
               </p>
             </div>
           </div>
+        </div>
+
+        <div id="features" className="mt-16 grid grid-cols-2 gap-6 md:grid-cols-4">
+          {features.map(({ icon: Icon, title, description }) => (
+            <div key={title} className="flex flex-col gap-2">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                <Icon size={18} />
+              </span>
+              <h3 className="text-sm font-semibold text-text">{title}</h3>
+              <p className="text-xs leading-relaxed text-text-muted">{description}</p>
+            </div>
+          ))}
         </div>
       </div>
     </section>
