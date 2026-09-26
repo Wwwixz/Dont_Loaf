@@ -23,10 +23,16 @@ alembic upgrade head
 ```
 
 The API health endpoint is `/health` and its interactive documentation is
-available at `/docs`.
+available at `/docs`. Vercel routes the equivalent prefixed health check at
+`/api/health`.
 
 ## Frontend and API URLs
 
 The current frontend uses local demo data and does not make API requests.
 `FRONTEND_ORIGIN` must match the deployed frontend origin for browser requests
-to the API. The `/api` rewrite is configured in `vercel.json`.
+to the API. The sign-in and registration forms call `/api/auth/login` and
+`/api/auth/register`.
+
+After configuring the database and deploying, create an account at
+`/auth?mode=register`. The demo account in the backend README is created only
+when the seed script is run; it is not created automatically in production.

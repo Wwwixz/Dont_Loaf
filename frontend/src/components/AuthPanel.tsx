@@ -65,10 +65,73 @@ interface FormSideProps {
 
 function FormSide({ mode, onSwitch }: FormSideProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    // Здесь будет вызов API аутентификации
+    setErrorMessage('');
+    setIsSubmitting(true);
+
+    const formData = new FormData(event.currentTarget);
+    const email = String(formData.get('email') ?? '').trim();
+    const password = String(formData.get('password') ?? '');
+    const isRegistering = mode === 'register';
+    const payload = isRegistering
+      ? {
+          username: String(formData.get('username') ?? '').trim(),
+          email,
+          password,
+        }
+      : { email, password };
+
+    try {
+      const response = await fetch(`/api/auth/${isRegistering ? 'register' : 'login'}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const contentType = response.headers.get('content-type') ?? '';
+
+      if (!contentType.includes('application/json')) {
+        throw new Error(
+          response.ok
+            ? 'Сервер вернул неожиданный ответ. Проверьте настройки API.'
+            : `Сервер API вернул ошибку ${response.status}.`,
+        );
+      }
+
+      const result: unknown = await response.json();
+      if (!response.ok) {
+        throw new Error(getApiErrorMessage(result, response.status));
+      }
+      if (
+        typeof result !== 'object' ||
+        result === null ||
+        !('access_token' in result) ||
+        typeof result.access_token !== 'string' ||
+        !('user' in result)
+      ) {
+        throw new Error('Сервер вернул неполные данные авторизации.');
+      }
+
+      localStorage.removeItem('dontloaf_token');
+      sessionStorage.removeItem('dontloaf_token');
+      const storage = formData.get('remember') === 'on' ? localStorage : sessionStorage;
+      storage.setItem('dontloaf_token', result.access_token);
+      storage.setItem('dontloaf_user', JSON.stringify(result.user));
+      window.location.assign('/tasks');
+    } catch (error) {
+      setErrorMessage(
+        error instanceof TypeError
+          ? 'Не удалось связаться с сервером. Проверьте, настроен ли API и подключена ли база данных.'
+          : error instanceof Error
+            ? error.message
+            : 'Не удалось выполнить вход. Попробуйте ещё раз.',
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -84,14 +147,15 @@ function FormSide({ mode, onSwitch }: FormSideProps) {
 
       <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
         {mode === 'register' && (
-          <Field label="Никнейм" type="text" placeholder="Придумайте ник" name="username" />
+          <Field label="Никнейм" type="text" placeholder="Придумайте ник" name="username" required />
         )}
 
         <Field
-          label={mode === 'login' ? 'Email или телефон' : 'Email'}
-          type="text"
+          label="Email"
+          type="email"
           placeholder="name@example.com"
           name="email"
+          required
         />
 
         <div>
@@ -104,6 +168,9 @@ function FormSide({ mode, onSwitch }: FormSideProps) {
               name="password"
               type={showPassword ? 'text' : 'password'}
               placeholder={mode === 'register' ? 'Придумайте пароль' : 'Введите пароль'}
+              required
+              minLength={mode === 'register' ? 6 : undefined}
+              autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
               className="w-full rounded-lg border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text placeholder:text-text-muted/60 outline-none focus:border-primary"
             />
             <button
@@ -120,7 +187,7 @@ function FormSide({ mode, onSwitch }: FormSideProps) {
         {mode === 'login' && (
           <div className="flex items-center justify-between text-xs">
             <label className="flex items-center gap-2 text-text-muted">
-              <input type="checkbox" className="h-3.5 w-3.5 rounded border-border accent-primary" />
+              <input name="remember" type="checkbox" className="h-3.5 w-3.5 rounded border-border accent-primary" />
               Запомнить меня
             </label>
             <a href="#" className="font-medium text-primary hover:underline">
@@ -129,11 +196,18 @@ function FormSide({ mode, onSwitch }: FormSideProps) {
           </div>
         )}
 
+        {errorMessage && (
+          <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            {errorMessage}
+          </p>
+        )}
+
         <button
           type="submit"
+          disabled={isSubmitting}
           className="mt-2 w-full rounded-lg bg-sidebar py-2.5 text-sm font-semibold text-invert shadow-md transition-colors hover:bg-sidebar-hover"
         >
-          {mode === 'register' ? 'Зарегистрироваться' : 'Войти'}
+          {isSubmitting ? 'Подождите…' : mode === 'register' ? 'Зарегистрироваться' : 'Войти'}
         </button>
 
         <p className="text-center text-xs text-text-muted">
@@ -199,9 +273,10 @@ interface FieldProps {
   type: string;
   placeholder: string;
   name: string;
+  required?: boolean;
 }
 
-function Field({ label, type, placeholder, name }: FieldProps) {
+function Field({ label, type, placeholder, name, required = false }: FieldProps) {
   return (
     <div>
       <label className="mb-1.5 block text-xs font-medium text-text-muted" htmlFor={name}>
@@ -212,8 +287,35 @@ function Field({ label, type, placeholder, name }: FieldProps) {
         name={name}
         type={type}
         placeholder={placeholder}
+        required={required}
+        autoComplete={name === 'email' ? 'email' : 'username'}
         className="w-full rounded-lg border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text placeholder:text-text-muted/60 outline-none focus:border-primary"
       />
     </div>
   );
+}
+
+function getApiErrorMessage(result: unknown, status: number): string {
+  if (typeof result === 'object' && result !== null && 'detail' in result) {
+    const detail = result.detail;
+    if (typeof detail === 'string') {
+      return detail;
+    }
+    if (Array.isArray(detail)) {
+      const messages = detail
+        .filter(
+          (item): item is { msg: string } =>
+            typeof item === 'object' &&
+            item !== null &&
+            'msg' in item &&
+            typeof item.msg === 'string',
+        )
+        .map((item) => item.msg);
+      if (messages.length > 0) {
+        return messages.join('. ');
+      }
+    }
+  }
+
+  return `Не удалось выполнить запрос (ошибка ${status}).`;
 }
