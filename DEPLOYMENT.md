@@ -15,8 +15,10 @@ Vercel:
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Optional; defaults to `1440` |
 
 The backend needs an externally reachable PostgreSQL database; the local Docker
-Compose database is not available to a Vercel deployment. Run database
-migrations against the production database before using the API:
+Compose database is not available to a Vercel deployment. The Neon Vercel
+integration provides `DATABASE_URL` (using the `DATABASE` variable prefix).
+Run database migrations against the production database before registering or
+signing in:
 
 ```sh
 alembic upgrade head
@@ -28,10 +30,9 @@ available at `/docs`. Vercel routes the equivalent prefixed health check at
 
 ## Frontend and API URLs
 
-The current frontend uses local demo data and does not make API requests.
-`FRONTEND_ORIGIN` must match the deployed frontend origin for browser requests
-to the API. The sign-in and registration forms call `/api/auth/login` and
-`/api/auth/register`.
+Most of the frontend still uses local demo data. The sign-in and registration
+forms call `/api/auth/login` and `/api/auth/register`. `FRONTEND_ORIGIN` must
+match the deployed frontend origin for browser requests to the API.
 
 After configuring the database and deploying, create an account at
 `/auth?mode=register`. The demo account in the backend README is created only

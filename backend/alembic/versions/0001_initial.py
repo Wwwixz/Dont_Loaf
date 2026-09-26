@@ -18,8 +18,6 @@ priority_enum = postgresql.ENUM("low", "medium", "high", name="priority")
 
 
 def upgrade() -> None:
-    priority_enum.create(op.get_bind(), checkfirst=True)
-
     op.create_table(
         "users",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
