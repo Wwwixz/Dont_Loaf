@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import Logo from './Logo';
@@ -31,6 +31,12 @@ function TelegramIcon() {
 
 export default function AuthPanel({ initialMode = 'register' }: AuthPanelProps) {
   const [mode, setMode] = useState<Mode>(initialMode);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('mode') === 'login') {
+      setMode('login');
+    }
+  }, []);
 
   return (
     <div className="grid w-full max-w-4xl overflow-hidden rounded-3xl border border-border bg-surface shadow-2xl md:grid-cols-2">
