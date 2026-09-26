@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { Search, Plus, MoreVertical } from 'lucide-react';
 
+const todayDate = new Intl.DateTimeFormat('ru-RU', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+}).format(new Date());
+
 interface Task {
   id: string;
   title: string;
@@ -15,8 +21,8 @@ const initialTasks: Task[] = [
   { id: '2', title: 'Прочитать книгу', tag: 'Саморазвитие', tagColor: 'bg-violet-100 text-violet-600', date: 'Сегодня', done: true },
   { id: '3', title: 'Пробежка 5 км', tag: 'Здоровье', tagColor: 'bg-rose-100 text-rose-600', date: 'Завтра', done: false },
   { id: '4', title: 'Разобрать почту', tag: 'Работа', tagColor: 'bg-amber-100 text-amber-700', date: 'Завтра', done: false },
-  { id: '5', title: 'Изучить React', tag: 'Проекты', tagColor: 'bg-teal-100 text-teal-700', date: '14.05.2025', done: false },
-  { id: '6', title: 'Поговорить с игрой', tag: 'Хобби', tagColor: 'bg-fuchsia-100 text-fuchsia-700', date: '15.05.2025', done: false },
+  { id: '5', title: 'Изучить React', tag: 'Проекты', tagColor: 'bg-teal-100 text-teal-700', date: todayDate, done: false },
+  { id: '6', title: 'Поговорить с игрой', tag: 'Хобби', tagColor: 'bg-fuchsia-100 text-fuchsia-700', date: todayDate, done: false },
 ];
 
 const filters = ['Все', 'Сегодня', 'Неделя', 'Месяц'];

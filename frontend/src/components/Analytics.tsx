@@ -15,6 +15,27 @@ const achievements = [
   { emoji: '\u2B50', title: 'Постоянство', subtitle: '30 дней в приложении' },
 ];
 
+const now = new Date();
+const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+const lastDateParts = new Intl.DateTimeFormat('ru-RU', {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+}).formatToParts(new Date(now.getFullYear(), now.getMonth(), lastDayOfMonth));
+const datePart = (type: Intl.DateTimeFormatPartTypes) => {
+  const part = lastDateParts.find((datePart) => datePart.type === type);
+  if (!part) {
+    throw new Error(`Missing ${type} part when formatting the current date`);
+  }
+  return part.value;
+};
+const dateRangeLabel = `1 — ${datePart('day')} ${datePart('month')} ${datePart('year')}`;
+const chartDates = [1, 10, 15, 20, 25, lastDayOfMonth].map((day) =>
+  new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short' }).format(
+    new Date(now.getFullYear(), now.getMonth(), day),
+  ),
+);
+
 function LineChart() {
   const max = Math.max(...weekData);
   const points = weekData
@@ -73,7 +94,7 @@ export default function Analytics() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-text">Аналитика</h1>
         <span className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs text-text-muted">
-          1 — 31 мая 2025
+          {dateRangeLabel}
         </span>
       </div>
 
@@ -89,7 +110,7 @@ export default function Analytics() {
           <div className="mt-4">
             <LineChart />
             <div className="mt-1 flex justify-between text-[10px] text-text-muted">
-              {['1 мая', '10 мая', '15 мая', '20 мая', '25 мая', '31 мая'].map((d) => (
+              {chartDates.map((d) => (
                 <span key={d}>{d}</span>
               ))}
             </div>

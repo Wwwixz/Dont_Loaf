@@ -60,6 +60,7 @@ function TreeIllustration({ progress }: { progress: number }) {
 
 export default function TaskTree() {
   const [today, setToday] = useState<TodayTask[]>(initialToday);
+  const todayLabel = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long' }).format(new Date());
 
   function toggle(id: string) {
     setToday((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
@@ -73,7 +74,7 @@ export default function TaskTree() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-text">Дерево задач</h1>
-          <p className="text-sm text-text-muted">Сегодня, 22 мая</p>
+          <p className="text-sm text-text-muted">Сегодня, {todayLabel}</p>
         </div>
         <a
           href="/editor"
