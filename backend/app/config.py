@@ -10,10 +10,6 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     frontend_origin: str = "http://localhost:4321"
 
-    # Google OAuth: пустые значения — вход через Google отключён
-    google_client_id: str = ""
-    google_client_secret: str = ""
-
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
