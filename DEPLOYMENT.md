@@ -30,7 +30,9 @@ available at `/docs`. Vercel routes the equivalent prefixed health check at
 
 ## Frontend and API URLs
 
-Most of the frontend still uses local demo data. The sign-in and registration
+All frontend screens are wired to the API: authentication, tasks (list,
+filters, toggle, editor), task tree, analytics, profile and notes all call
+`/api/...` and render the signed-in user's data. The sign-in and registration
 forms call `/api/auth/login` and `/api/auth/register`. `FRONTEND_ORIGIN` must
 match the deployed frontend origin for browser requests to the API.
 
