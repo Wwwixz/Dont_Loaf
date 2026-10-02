@@ -74,6 +74,8 @@ alembic/           — миграции БД
 | POST   | `/auth/register`        | Регистрация                        |
 | POST   | `/auth/login`           | Вход, возвращает JWT               |
 | GET    | `/auth/me`              | Текущий пользователь               |
+| GET    | `/auth/google`          | Начало входа через Google (OAuth)  |
+| GET    | `/auth/google/callback` | Колбэк Google, выдаёт JWT          |
 | GET    | `/tasks?filter=today`   | Список задач (all/today/week/month)|
 | POST   | `/tasks`                | Создать задачу                     |
 | PUT    | `/tasks/{id}`           | Обновить задачу                    |
@@ -94,4 +96,12 @@ Authorization: Bearer <access_token>
 В `.env` укажи адрес фронтенда для CORS:
 ```
 FRONTEND_ORIGIN=http://localhost:4321
+
+# Google OAuth (опционально): без них кнопка Google показывает "не настроено"
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+```
+
+Redirect URI для Google Cloud Console: `{FRONTEND_ORIGIN}/api/auth/google/callback`
+(например `http://localhost:4321/api/auth/google/callback` для локальной разработки).
 ```

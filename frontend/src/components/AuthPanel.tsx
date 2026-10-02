@@ -2,13 +2,27 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import Logo from './Logo';
-import { api, getToken, saveAuth } from '../lib/api';
+import { api, apiFetch, getToken, saveAuth } from '../lib/api';
 import type { User } from '../lib/api';
 
 type Mode = 'register' | 'login';
 
 interface AuthPanelProps {
   initialMode?: Mode;
+}
+
+const googleErrorMessages: Record<string, string> = {
+  google_not_configured: 'Вход через Google пока не настроен на сервере.',
+  google_state: 'Не удалось подтвердить запрос Google. Попробуйте войти ещё раз.',
+  google_exchange: 'Не удалось выполнить вход через Google. Попробуйте ещё раз.',
+  google_userinfo: 'Google не вернул данные профиля. Попробуйте ещё раз.',
+  google_no_email: 'У Google-аккаунта не подтверждён email — вход невозможен.',
+  google_unreachable: 'Сервер не смог связаться с Google. Попробуйте ещё раз.',
+  google_error: 'Не удалось выполнить вход через Google. Попробуйте ещё раз.',
+};
+
+function getGoogleErrorMessage(code: string): string {
+  return googleErrorMessages[code] ?? 'Не удалось выполнить вход через Google.';
 }
 
 function GoogleIcon() {
@@ -33,17 +47,6 @@ function TelegramIcon() {
 
 export default function AuthPanel({ initialMode = 'register' }: AuthPanelProps) {
   const [mode, setMode] = useState<Mode>(initialMode);
-
-  useEffect(() => {
-    // Уже вошёл — сразу в приложение.
-    if (getToken()) {
-      window.location.replace('/tasks');
-      return;
-    }
-    if (new URLSearchParams(window.location.search).get('mode') === 'login') {
-      setMode('login');
-    }
-  }, []);
 
   return (
     <div className="grid w-full max-w-4xl overflow-hidden rounded-3xl border border-border bg-surface shadow-2xl md:grid-cols-2">
@@ -80,6 +83,52 @@ function FormSide({ mode, onSwitch }: FormSideProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [googlePending, setGooglePending] = useState(false);
+
+  useEffect(() => {
+    // Возврат с Google-колбэка: JWT приходит в хеше URL (#access_token=...)
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const hashToken = hash.get('access_token');
+    if (hashToken) {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      setGooglePending(true);
+      apiFetch<User>('/api/auth/me', {
+        headers: { Authorization: `Bearer ${hashToken}` },
+      })
+        .then((user) => {
+          saveAuth(hashToken, user, true);
+          window.location.replace('/tasks');
+        })
+        .catch(() => {
+          setGooglePending(false);
+          setErrorMessage('Не удалось выполнить вход через Google. Попробуйте ещё раз.');
+        });
+      return;
+    }
+
+    // Ошибки OAuth бэкенд присылает как /auth?error=<код>
+    const oauthError = new URLSearchParams(window.location.search).get('error');
+    if (oauthError) {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      setErrorMessage(getGoogleErrorMessage(oauthError));
+      return;
+    }
+
+    // Уже вошёл — сразу в приложение.
+    if (getToken()) {
+      window.location.replace('/tasks');
+      return;
+    }
+    if (new URLSearchParams(window.location.search).get('mode') === 'login') {
+      onSwitch('login');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function startGoogleSignIn() {
+    setGooglePending(true);
+    window.location.assign('/api/auth/google');
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -206,21 +255,24 @@ function FormSide({ mode, onSwitch }: FormSideProps) {
 
       <div className="my-6 flex items-center gap-3">
         <span className="h-px flex-1 bg-border" />
-        <span className="text-xs text-text-muted">или продолжить через</span>
+        <span className="text-xs text-text-muted">{googlePending ? 'Перенаправляем…' : 'или продолжить через'}</span>
         <span className="h-px flex-1 bg-border" />
       </div>
 
       <div className="flex gap-3">
         <button
           type="button"
-          className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-surface-2 py-2.5 text-sm font-medium text-text transition-colors hover:border-primary/50"
+          onClick={startGoogleSignIn}
+          disabled={googlePending}
+          className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-surface-2 py-2.5 text-sm font-medium text-text transition-colors hover:border-primary/50 disabled:opacity-60"
         >
           <GoogleIcon />
           Google
         </button>
         <button
           type="button"
-          className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-surface-2 py-2.5 text-sm font-medium text-text transition-colors hover:border-primary/50"
+          title="Вход через Telegram появится позже"
+          className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-surface-2 py-2.5 text-sm font-medium text-text-muted transition-colors"
         >
           <TelegramIcon />
           Telegram

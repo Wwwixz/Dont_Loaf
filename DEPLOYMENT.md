@@ -13,6 +13,18 @@ Vercel:
 | `SECRET_KEY` | A unique, randomly generated secret; do not use the development default |
 | `FRONTEND_ORIGIN` | The deployed frontend origin, for example `https://your-frontend.vercel.app` |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Optional; defaults to `1440` |
+| `GOOGLE_CLIENT_ID` | Optional; Google OAuth client ID for "Sign in with Google" |
+| `GOOGLE_CLIENT_SECRET` | Optional; Google OAuth client secret |
+
+## Google sign-in
+
+The Google button on `/auth` calls `/api/auth/google`, which redirects to
+Google and returns to `/api/auth/google/callback`. The redirect URI sent to
+Google is `{FRONTEND_ORIGIN}/api/auth/google/callback`, so register exactly
+that URL (for example `https://your-frontend.vercel.app/api/auth/google/callback`)
+as an Authorized redirect URI of a Web-application OAuth client in Google
+Cloud Console. When the two `GOOGLE_*` variables are unset, the button shows
+a "not configured" message instead of redirecting.
 
 The backend needs an externally reachable PostgreSQL database; the local Docker
 Compose database is not available to a Vercel deployment. The Neon Vercel
