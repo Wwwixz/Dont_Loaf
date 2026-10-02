@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import Logo from './Logo';
+import { getToken } from '../lib/api';
 
 const links = [
   { label: 'Главная', href: '/' },
@@ -11,6 +12,11 @@ const links = [
 
 export default function Header() {
   const [open, setOpen] = useState(false);
+  const [authed, setAuthed] = useState(false);
+
+  useEffect(() => {
+    setAuthed(Boolean(getToken()));
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-bg/90 backdrop-blur">
@@ -32,18 +38,29 @@ export default function Header() {
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
-          <a
-            href="/auth?mode=login"
-            className="rounded-lg px-4 py-2 text-sm font-medium text-text-muted transition-colors hover:text-text"
-          >
-            Войти
-          </a>
-          <a
-            href="/auth?mode=register"
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-primary-hover"
-          >
-            Регистрация
-          </a>
+          {authed ? (
+            <a
+              href="/tasks"
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-primary-hover"
+            >
+              Открыть приложение
+            </a>
+          ) : (
+            <>
+              <a
+                href="/auth?mode=login"
+                className="rounded-lg px-4 py-2 text-sm font-medium text-text-muted transition-colors hover:text-text"
+              >
+                Войти
+              </a>
+              <a
+                href="/auth?mode=register"
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-primary-hover"
+              >
+                Регистрация
+              </a>
+            </>
+          )}
         </div>
 
         <button
@@ -65,15 +82,26 @@ export default function Header() {
               </a>
             ))}
             <div className="mt-2 flex flex-col gap-3 border-t border-border pt-4">
-              <a href="/auth?mode=login" className="text-sm font-medium text-text-muted hover:text-text">
-                Войти
-              </a>
-              <a
-                href="/auth?mode=register"
-                className="rounded-lg bg-primary px-4 py-2 text-center text-sm font-medium text-white hover:bg-primary-hover"
-              >
-                Регистрация
-              </a>
+              {authed ? (
+                <a
+                  href="/tasks"
+                  className="rounded-lg bg-primary px-4 py-2 text-center text-sm font-medium text-white hover:bg-primary-hover"
+                >
+                  Открыть приложение
+                </a>
+              ) : (
+                <>
+                  <a href="/auth?mode=login" className="text-sm font-medium text-text-muted hover:text-text">
+                    Войти
+                  </a>
+                  <a
+                    href="/auth?mode=register"
+                    className="rounded-lg bg-primary px-4 py-2 text-center text-sm font-medium text-white hover:bg-primary-hover"
+                  >
+                    Регистрация
+                  </a>
+                </>
+              )}
             </div>
           </nav>
         </div>

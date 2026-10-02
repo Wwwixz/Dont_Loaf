@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ArrowLeft, X, Plus } from 'lucide-react';
+import { api, requireAuth } from '../lib/api';
+import type { Priority, Task } from '../lib/api';
 
 const categories = ['Учёба', 'Работа', 'Здоровье', 'Личное'];
 const priorities = [
-  { value: 'low', label: 'Низкий', color: 'bg-emerald-500' },
-  { value: 'medium', label: 'Средний', color: 'bg-amber-500' },
-  { value: 'high', label: 'Высокий', color: 'bg-rose-500' },
+  { value: 'low' as Priority, label: 'Низкий', color: 'bg-emerald-500' },
+  { value: 'medium' as Priority, label: 'Средний', color: 'bg-amber-500' },
+  { value: 'high' as Priority, label: 'Высокий', color: 'bg-rose-500' },
 ];
 
 function getLocalDateValue() {
@@ -18,10 +20,48 @@ function getLocalDateValue() {
 }
 
 export default function TaskEditor() {
-  const [tags, setTags] = useState<string[]>(['математика']);
-  const [tagInput, setTagInput] = useState('');
-  const [priority, setPriority] = useState('high');
+  const [authed, setAuthed] = useState(false);
+  const [taskId, setTaskId] = useState<string | null>(null);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState(categories[0]);
+  const [priority, setPriority] = useState<Priority>('medium');
   const [date, setDate] = useState(getLocalDateValue);
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    setAuthed(requireAuth());
+  }, []);
+
+  useEffect(() => {
+    if (!authed) {
+      return;
+    }
+    const id = new URLSearchParams(window.location.search).get('id');
+    if (!id) {
+      return;
+    }
+    setIsLoading(true);
+    api.tasks
+      .get(id)
+      .then((task: Task) => {
+        setTaskId(task.id);
+        setTitle(task.title);
+        setDescription(task.description ?? '');
+        setCategory(task.category);
+        setPriority(task.priority);
+        setDate(task.due_date ?? '');
+        setTags(task.tags.map((t) => t.name));
+      })
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : 'Не удалось загрузить задачу.');
+      })
+      .finally(() => setIsLoading(false));
+  }, [authed]);
 
   function addTag() {
     const value = tagInput.trim();
@@ -35,16 +75,64 @@ export default function TaskEditor() {
     setTags((prev) => prev.filter((t) => t !== tag));
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    // Здесь будет сохранение задачи через API
+    setError('');
+
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      setError('Введите название задачи.');
+      return;
+    }
+
+    setIsSaving(true);
+    const payload = {
+      title: trimmedTitle,
+      description: description.trim() || null,
+      category,
+      priority,
+      due_date: date || null,
+      tags,
+    };
+
+    try {
+      if (taskId) {
+        await api.tasks.update(taskId, payload);
+      } else {
+        await api.tasks.create(payload);
+      }
+      window.location.assign('/tasks');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не удалось сохранить задачу.');
+      setIsSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!taskId || !window.confirm('Удалить эту задачу?')) {
+      return;
+    }
+    try {
+      await api.tasks.remove(taskId);
+      window.location.assign('/tasks');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не удалось удалить задачу.');
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 px-8 py-6">
+        <p className="text-sm text-text-muted">Загрузка…</p>
+      </div>
+    );
   }
 
   return (
     <div className="flex-1 px-8 py-6">
       <a href="/tree" className="mb-4 inline-flex items-center gap-2 text-sm text-text-muted hover:text-text">
         <ArrowLeft size={16} />
-        Редактор задачи
+        Назад к дереву задач
       </a>
 
       <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[1fr_280px]">
@@ -56,7 +144,10 @@ export default function TaskEditor() {
             <input
               id="title"
               type="text"
-              defaultValue="Сделать домашнее задание по математике"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Что нужно сделать?"
+              required
               className="w-full rounded-lg border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text outline-none focus:border-primary"
             />
           </div>
@@ -68,7 +159,9 @@ export default function TaskEditor() {
             <textarea
               id="description"
               rows={4}
-              defaultValue="Решить задачи с 1 по 10 из учебника. Повторить тему по формулам."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Детали, ссылки, шаги…"
               className="w-full resize-none rounded-lg border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text outline-none focus:border-primary"
             />
           </div>
@@ -80,8 +173,9 @@ export default function TaskEditor() {
               </label>
               <select
                 id="category"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
                 className="w-full rounded-lg border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text outline-none focus:border-primary"
-                defaultValue={categories[0]}
               >
                 {categories.map((c) => (
                   <option key={c} value={c}>
@@ -165,13 +259,22 @@ export default function TaskEditor() {
           </div>
         </div>
 
+        {error && (
+          <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 lg:col-span-2">
+            {error}
+          </p>
+        )}
+
         <div className="flex gap-3 lg:col-span-2">
-          <button
-            type="button"
-            className="rounded-lg border border-rose-200 px-5 py-2.5 text-sm font-medium text-rose-500 hover:bg-rose-50"
-          >
-            Удалить
-          </button>
+          {taskId && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="rounded-lg border border-rose-200 px-5 py-2.5 text-sm font-medium text-rose-500 hover:bg-rose-50"
+            >
+              Удалить
+            </button>
+          )}
           <a
             href="/tree"
             className="rounded-lg border border-border px-5 py-2.5 text-sm font-medium text-text-muted hover:text-text"
@@ -180,9 +283,10 @@ export default function TaskEditor() {
           </a>
           <button
             type="submit"
-            className="ml-auto rounded-lg bg-sidebar px-6 py-2.5 text-sm font-semibold text-invert shadow-sm transition-colors hover:bg-sidebar-hover"
+            disabled={isSaving}
+            className="ml-auto rounded-lg bg-sidebar px-6 py-2.5 text-sm font-semibold text-invert shadow-sm transition-colors hover:bg-sidebar-hover disabled:opacity-60"
           >
-            Сохранить
+            {isSaving ? 'Сохранение…' : 'Сохранить'}
           </button>
         </div>
       </form>

@@ -1,19 +1,7 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Plus, CheckSquare, Square } from 'lucide-react';
-
-interface TodayTask {
-  id: string;
-  title: string;
-  done: boolean;
-}
-
-const initialToday: TodayTask[] = [
-  { id: '1', title: 'Сделать ДЗ по математике', done: true },
-  { id: '2', title: 'Прочитать книгу', done: true },
-  { id: '3', title: 'Пробежка 5 км', done: false },
-  { id: '4', title: 'Разобрать почту', done: false },
-  { id: '5', title: 'Изучить React', done: false },
-];
+import { api, requireAuth } from '../lib/api';
+import type { Task } from '../lib/api';
 
 function TreeIllustration({ progress }: { progress: number }) {
   // progress: 0..1 — влияет на количество "цветущих" узлов дерева
@@ -59,11 +47,43 @@ function TreeIllustration({ progress }: { progress: number }) {
 }
 
 export default function TaskTree() {
-  const [today, setToday] = useState<TodayTask[]>(initialToday);
+  const [authed, setAuthed] = useState(false);
+  const [today, setToday] = useState<Task[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
   const todayLabel = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long' }).format(new Date());
 
-  function toggle(id: string) {
-    setToday((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
+  const loadTasks = useCallback(async () => {
+    setIsLoading(true);
+    setError('');
+    try {
+      setToday(await api.tasks.list({ filter: 'today' }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не удалось загрузить задачи.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    setAuthed(requireAuth());
+  }, []);
+
+  useEffect(() => {
+    if (authed) {
+      loadTasks();
+    }
+  }, [authed, loadTasks]);
+
+  async function toggle(task: Task) {
+    setToday((prev) => prev.map((t) => (t.id === task.id ? { ...t, done: !t.done } : t)));
+    try {
+      const updated = await api.tasks.toggle(task.id);
+      setToday((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+    } catch (err) {
+      setToday((prev) => prev.map((t) => (t.id === task.id ? { ...t, done: task.done } : t)));
+      setError(err instanceof Error ? err.message : 'Не удалось обновить задачу.');
+    }
   }
 
   const doneCount = today.filter((t) => t.done).length;
@@ -85,6 +105,12 @@ export default function TaskTree() {
         </a>
       </div>
 
+      {error && (
+        <p role="alert" className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+          {error}
+        </p>
+      )}
+
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="flex items-center justify-center rounded-2xl border border-border bg-surface p-6">
           <div className="h-72 w-full max-w-sm">
@@ -95,26 +121,37 @@ export default function TaskTree() {
         <div className="rounded-2xl border border-border bg-surface p-5">
           <h2 className="text-sm font-semibold text-text">Сегодня</h2>
 
-          <ul className="mt-4 flex flex-col gap-1">
-            {today.map((task) => (
-              <li key={task.id}>
-                <button
-                  type="button"
-                  onClick={() => toggle(task.id)}
-                  className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm transition-colors hover:bg-surface-2"
-                >
-                  {task.done ? (
-                    <CheckSquare size={18} className="shrink-0 text-primary" />
-                  ) : (
-                    <Square size={18} className="shrink-0 text-text-muted" />
-                  )}
-                  <span className={task.done ? 'text-text-muted line-through' : 'text-text'}>
-                    {task.title}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          {isLoading ? (
+            <p className="mt-4 text-sm text-text-muted">Загрузка…</p>
+          ) : today.length === 0 ? (
+            <p className="mt-4 text-sm text-text-muted">
+              На сегодня задач нет.{' '}
+              <a href="/editor" className="font-medium text-primary hover:underline">
+                Добавить?
+              </a>
+            </p>
+          ) : (
+            <ul className="mt-4 flex flex-col gap-1">
+              {today.map((task) => (
+                <li key={task.id}>
+                  <button
+                    type="button"
+                    onClick={() => toggle(task)}
+                    className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm transition-colors hover:bg-surface-2"
+                  >
+                    {task.done ? (
+                      <CheckSquare size={18} className="shrink-0 text-primary" />
+                    ) : (
+                      <Square size={18} className="shrink-0 text-text-muted" />
+                    )}
+                    <span className={task.done ? 'text-text-muted line-through' : 'text-text'}>
+                      {task.title}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
 
           <div className="mt-5 border-t border-border pt-4">
             <div className="mb-1.5 flex items-center justify-between text-xs text-text-muted">

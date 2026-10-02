@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import Logo from './Logo';
+import { api, getToken, saveAuth } from '../lib/api';
+import type { User } from '../lib/api';
 
 type Mode = 'register' | 'login';
 
@@ -33,6 +35,11 @@ export default function AuthPanel({ initialMode = 'register' }: AuthPanelProps) 
   const [mode, setMode] = useState<Mode>(initialMode);
 
   useEffect(() => {
+    // Уже вошёл — сразу в приложение.
+    if (getToken()) {
+      window.location.replace('/tasks');
+      return;
+    }
     if (new URLSearchParams(window.location.search).get('mode') === 'login') {
       setMode('login');
     }
@@ -83,49 +90,18 @@ function FormSide({ mode, onSwitch }: FormSideProps) {
     const email = String(formData.get('email') ?? '').trim();
     const password = String(formData.get('password') ?? '');
     const isRegistering = mode === 'register';
-    const payload = isRegistering
-      ? {
-          username: String(formData.get('username') ?? '').trim(),
-          email,
-          password,
-        }
-      : { email, password };
+    const remember = formData.get('remember') === 'on';
 
     try {
-      const response = await fetch(`/api/auth/${isRegistering ? 'register' : 'login'}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const contentType = response.headers.get('content-type') ?? '';
+      const result = isRegistering
+        ? await api.register({
+            username: String(formData.get('username') ?? '').trim(),
+            email,
+            password,
+          })
+        : await api.login({ email, password });
 
-      if (!contentType.includes('application/json')) {
-        throw new Error(
-          response.ok
-            ? 'Сервер вернул неожиданный ответ. Проверьте настройки API.'
-            : `Сервер API вернул ошибку ${response.status}.`,
-        );
-      }
-
-      const result: unknown = await response.json();
-      if (!response.ok) {
-        throw new Error(getApiErrorMessage(result, response.status));
-      }
-      if (
-        typeof result !== 'object' ||
-        result === null ||
-        !('access_token' in result) ||
-        typeof result.access_token !== 'string' ||
-        !('user' in result)
-      ) {
-        throw new Error('Сервер вернул неполные данные авторизации.');
-      }
-
-      localStorage.removeItem('dontloaf_token');
-      sessionStorage.removeItem('dontloaf_token');
-      const storage = formData.get('remember') === 'on' ? localStorage : sessionStorage;
-      storage.setItem('dontloaf_token', result.access_token);
-      storage.setItem('dontloaf_user', JSON.stringify(result.user));
+      saveAuth(result.access_token, result.user as User, remember);
       window.location.assign('/tasks');
     } catch (error) {
       setErrorMessage(
@@ -299,29 +275,4 @@ function Field({ label, type, placeholder, name, required = false }: FieldProps)
       />
     </div>
   );
-}
-
-function getApiErrorMessage(result: unknown, status: number): string {
-  if (typeof result === 'object' && result !== null && 'detail' in result) {
-    const detail = result.detail;
-    if (typeof detail === 'string') {
-      return detail;
-    }
-    if (Array.isArray(detail)) {
-      const messages = detail
-        .filter(
-          (item): item is { msg: string } =>
-            typeof item === 'object' &&
-            item !== null &&
-            'msg' in item &&
-            typeof item.msg === 'string',
-        )
-        .map((item) => item.msg);
-      if (messages.length > 0) {
-        return messages.join('. ');
-      }
-    }
-  }
-
-  return `Не удалось выполнить запрос (ошибка ${status}).`;
 }

@@ -9,6 +9,12 @@ export default defineConfig({
   integrations: [react()],
 
   vite: {
-    plugins: [tailwindcss()]
+    plugins: [tailwindcss()],
+    server: {
+      proxy: {
+        // В dev запросы /api уходят на локальный FastAPI (uvicorn app.main:app --port 8000)
+        '/api': 'http://localhost:8000'
+      }
+    }
   }
 });

@@ -1,5 +1,6 @@
-import { TreePine, BookOpen, BarChart3, User, Settings, LogOut } from 'lucide-react';
+import { TreePine, BookOpen, BarChart3, User, LogOut } from 'lucide-react';
 import Logo from './Logo';
+import { clearAuth } from '../lib/api';
 
 export type SidebarPage = 'tree' | 'obsidian' | 'analytics' | 'profile' | 'tasks';
 
@@ -44,20 +45,17 @@ export default function Sidebar({ active }: SidebarProps) {
       </div>
 
       <div className="flex flex-col gap-1 border-t border-sidebar-border pt-4">
-        <a
-          href="#"
-          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-invert-muted transition-colors hover:bg-sidebar-hover hover:text-invert"
-        >
-          <Settings size={17} />
-          Настройки
-        </a>
-        <a
-          href="/"
+        <button
+          type="button"
+          onClick={() => {
+            clearAuth();
+            window.location.assign('/');
+          }}
           className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-invert-muted transition-colors hover:bg-sidebar-hover hover:text-invert"
         >
           <LogOut size={17} />
           Выход
-        </a>
+        </button>
       </div>
     </aside>
   );
