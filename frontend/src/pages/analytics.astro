@@ -1,12 +1,13 @@
----
+﻿---
 import Layout from '../layouts/Layout.astro';
 import Sidebar from '../components/Sidebar';
 import Analytics from '../components/Analytics';
 ---
 
 <Layout title="DontLoaf — Аналитика">
-  <main class="flex min-h-screen bg-bg">
+  <main class="app-shell" aria-label="Рабочее пространство DontLoaf">
     <Sidebar client:load active="analytics" />
     <Analytics client:load />
   </main>
 </Layout>
+

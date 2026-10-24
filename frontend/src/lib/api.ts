@@ -176,7 +176,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   }
 
   // Истёкший токен — сбрасываем сессию и просим войти заново.
-  if (response.status === 401) {
+  if (response.status === 401 && !path.startsWith('/api/auth/')) {
     clearAuth();
     window.location.replace('/auth?mode=login');
     throw new ApiError('Сессия истекла, войдите заново.', 401);

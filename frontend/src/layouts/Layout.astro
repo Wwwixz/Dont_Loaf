@@ -1,5 +1,18 @@
 ---
 import '../styles/global.css';
+import '../styles/landing.css';
+import '../styles/app.css';
+import '../styles/views.css';
+import '../styles/auth.css';
+import '../styles/motion.css';
+import '../styles/enhancements.css';
+import '@fontsource/inter/400.css';
+import '@fontsource/inter/500.css';
+import '@fontsource/inter/600.css';
+import '@fontsource/inter/700.css';
+import '@fontsource/space-grotesk/500.css';
+import '@fontsource/space-grotesk/600.css';
+import '@fontsource/space-grotesk/700.css';
 
 interface Props {
   title: string;
@@ -14,12 +27,20 @@ const { title, description = 'DontLoaf — личный помощник в ми
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#090B10" />
+    <script is:inline>
+      try {
+        document.documentElement.dataset.motion = localStorage.getItem('dontloaf_reduce_motion') === 'true' ? 'reduced' : 'standard';
+        document.documentElement.dataset.density = localStorage.getItem('dontloaf_compact_tasks') === 'true' ? 'compact' : 'standard';
+      } catch {}
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="generator" content={Astro.generator} />
     <meta name="description" content={description} />
     <title>{title}</title>
   </head>
   <body class="bg-bg text-text antialiased min-h-screen">
+    <a class="skip-link" href="#main-content">К содержимому</a>
     <slot />
   </body>
 </html>

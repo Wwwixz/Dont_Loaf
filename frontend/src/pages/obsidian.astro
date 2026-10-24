@@ -1,12 +1,13 @@
----
+﻿---
 import Layout from '../layouts/Layout.astro';
 import Sidebar from '../components/Sidebar';
 import Obsidian from '../components/Obsidian';
 ---
 
-<Layout title="DontLoaf — Obsidian">
-  <main class="flex min-h-screen bg-bg">
+<Layout title="DontLoaf — Заметки">
+  <main class="app-shell" aria-label="Рабочее пространство DontLoaf">
     <Sidebar client:load active="obsidian" />
     <Obsidian client:load />
   </main>
 </Layout>
+

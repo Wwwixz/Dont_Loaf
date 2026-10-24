@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "kind": "svg",
+  "title": "frontend/public/favicon.svg",
+  "entry": "frontend/public/favicon.svg",
+  "renderer": "svg",
+  "status": "complete",
+  "exports": [
+    "svg",
+    "zip"
+  ],
+  "createdAt": "2026-10-23T23:27:49.324Z",
+  "updatedAt": "2026-10-23T23:27:49.324Z",
+  "metadata": {
+    "inferred": true
+  }
+}

@@ -1,215 +1,58 @@
-import { useEffect, useState } from 'react';
-import { ListChecks, CheckCircle2, Percent } from 'lucide-react';
-import { api, requireAuth } from '../lib/api';
-import type { AnalyticsSummary, Profile } from '../lib/api';
+﻿import { useCallback, useEffect, useRef, useState } from 'react';
+import { AnimatePresence, m } from 'motion/react';
+import { ArrowUpRight, BarChart3, RefreshCw, TrendingUp } from 'lucide-react';
+import { api, requireAuth, type AnalyticsSummary, type Profile } from '../lib/api';
+import { MotionScope, ProgressRing } from './MotionUI';
+import { useMotionSettings } from '../lib/motion';
 
-const categoryColors = ['#2f9e6b', '#3b82f6', '#f59e0b', '#a855f7', '#f43f5e', '#0ea5e9', '#14b8a6'];
-
-function LineChart({ values }: { values: number[] }) {
-  const max = Math.max(...values, 1);
-  const points = values
-    .map((v, i) => `${(i / Math.max(values.length - 1, 1)) * 280},${80 - (v / max) * 70}`)
-    .join(' ');
-
-  return (
-    <svg viewBox="0 0 280 90" className="h-32 w-full">
-      <polyline points={points} fill="none" stroke="var(--color-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      {values.map((v, i) => (
-        <circle
-          key={i}
-          cx={(i / Math.max(values.length - 1, 1)) * 280}
-          cy={80 - (v / max) * 70}
-          r="3.5"
-          fill="var(--color-primary)"
-        />
-      ))}
+function WeeklyChart({ days }: { days: AnalyticsSummary['daily_progress'] }) {
+  const [selected,setSelected] = useState<number|null>(null);
+  const { reduced } = useMotionSettings();
+  const max = Math.max(...days.map(day=>day.completed),1);
+  const coords = days.map((day,index)=>({x:48+index*504/Math.max(days.length-1,1),y:216-day.completed/max*164}));
+  const path = coords.map((point,index)=>`${index?'L':'M'}${point.x} ${point.y}`).join(' ');
+  const active = selected===null?null:days[selected];
+  if(!days.length) return <div className="analytics-empty">Данных по дням пока нет.</div>;
+  return <div className="weekly-chart animated-week-chart">
+    <svg viewBox="0 0 600 252" width="600" height="252" role="img" aria-label={`Динамика выполнения: ${days.map(day=>`${day.day}: ${day.completed}`).join(', ')}`}>
+      {[0,.5,1].map(level=><g key={level}><path d={`M48 ${216-level*164}H560`} stroke="var(--line)" strokeDasharray="3 5"/><text x="8" y={220-level*164} fill="var(--muted)" fontSize="11">{Number((max*level).toFixed(1))}</text></g>)}
+      <m.path key={days.map(day=>day.completed).join('-')} d={path} fill="none" stroke="var(--violet)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" initial={{pathLength:reduced?1:0}} animate={{pathLength:1}} transition={{duration:reduced?0:.38}}/>
+      {coords.map((point,index)=><g key={days[index].day}>{selected===index&&<path d={`M${point.x} 36V216`} stroke="var(--muted)" strokeDasharray="3 4"/>}<m.circle initial={false} animate={{cx:point.x,cy:point.y,r:selected===index?7:4}} fill={selected===index?'var(--text)':'var(--violet)'} stroke="var(--surface)" strokeWidth="2"/></g>)}
     </svg>
-  );
+    <div className="chart-days" style={{gridTemplateColumns:`repeat(${days.length},minmax(0,1fr))`}}>{days.map((day,index)=><button key={day.day} type="button" className="od-cell" aria-pressed={selected===index} aria-label={`${new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long'}).format(new Date(`${day.day}T00:00:00`))}: выполнено ${day.completed}`} onClick={()=>setSelected(selected===index?null:index)}><span>{new Intl.DateTimeFormat('ru-RU',{weekday:'short'}).format(new Date(`${day.day}T00:00:00`))}</span><strong>{day.completed}</strong></button>)}</div>
+    <div className="chart-description" aria-live="polite">{active?`${new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long'}).format(new Date(`${active.day}T00:00:00`))} · Завершено задач: ${active.completed}`:'Выберите день, чтобы увидеть результат.'}</div>
+  </div>;
 }
-
-function DonutChart({ categories }: { categories: { label: string; value: number }[] }) {
-  const total = categories.reduce((sum, c) => sum + c.value, 0) || 1;
-  let offset = 0;
-  const radius = 40;
-  const circumference = 2 * Math.PI * radius;
-
-  return (
-    <svg viewBox="0 0 100 100" className="h-32 w-32 -rotate-90">
-      {categories.map((c, i) => {
-        const dash = (c.value / total) * circumference;
-        const circle = (
-          <circle
-            key={c.label}
-            cx="50"
-            cy="50"
-            r={radius}
-            fill="none"
-            stroke={categoryColors[i % categoryColors.length]}
-            strokeWidth="14"
-            strokeDasharray={`${dash} ${circumference - dash}`}
-            strokeDashoffset={-offset}
-          />
-        );
-        offset += dash;
-        return circle;
-      })}
-    </svg>
-  );
+function AnalyticsContent(){
+  const [summary,setSummary] = useState<AnalyticsSummary|null>(null);
+  const [profile,setProfile] = useState<Profile|null>(null);
+  const [loading,setLoading] = useState(true);
+  const [error,setError] = useState('');
+  const request = useRef(0);
+  const { reduced } = useMotionSettings();
+  const load = useCallback(async()=>{
+    const id = ++request.current;setLoading(true);setError('');
+    const [summaryResult,profileResult] = await Promise.allSettled([api.analytics.summary(),api.profile.get()]);
+    if(id!==request.current) return;
+    if(summaryResult.status==='fulfilled') setSummary(summaryResult.value);
+    else setError(summaryResult.reason instanceof Error?summaryResult.reason.message:'Не удалось загрузить аналитику.');
+    if(profileResult.status==='fulfilled') setProfile(profileResult.value);
+    setLoading(false);
+  },[]);
+  useEffect(()=>{if(requireAuth()) void load();return()=>{request.current++;};},[load]);
+  const weeklyTotal = summary?.daily_progress.reduce((sum,day)=>sum+day.completed,0)??0;
+  return <div id="main-content" tabIndex={-1} className="app-main analytics-page">
+    <div className="page-head"><div><span className="app-kicker">КАРТИНА ПРОГРЕССА / 05</span><h1 className="app-heading">Аналитика<span className="heading-period">.</span></h1><p className="app-subtitle">Замечайте свой ритм. Опирайтесь на сделанное.</p></div><button className="btn btn-secondary" disabled={loading} onClick={()=>void load()}><RefreshCw className="od-icon"/>{loading?'Обновление…':'Обновить'}</button></div>
+    {error&&<div className="notice" role="alert">{error}<button onClick={()=>void load()}>Повторить</button></div>}
+    {loading&&!summary?<div className="analytics-loading" role="status" aria-label="Загрузка аналитики"><div className="skeleton"/><div className="skeleton"/><div className="skeleton"/></div>:!summary?<div className="empty-state"><BarChart3 className="od-icon"/><h2>Данные пока недоступны</h2><p>Повторите загрузку, когда соединение восстановится.</p><button className="btn btn-secondary" onClick={()=>void load()}>Повторить</button></div>:<div aria-busy={loading}>
+      <div className="analytics-summary refined-kpis">{[{label:'ВСЕГО ЗАДАЧ',value:summary.total_tasks,helper:'за всё время'},{label:'ВЫПОЛНЕНО',value:summary.completed_tasks,helper:'за всё время'},{label:'ЗА НЕДЕЛЮ',value:weeklyTotal,helper:'за последние 7 дней'}].map((metric,index)=><m.div className="od-stat" key={metric.label} initial={{opacity:0,y:reduced?0:8}} animate={{opacity:1,y:0}} transition={{delay:reduced?0:index*.04}}><span>{metric.label}</span><AnimatePresence mode="wait" initial={false}><m.strong key={metric.value} className="metric" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>{metric.value}</m.strong></AnimatePresence><small>{metric.helper}</small></m.div>)}</div>
+      <div className="analytics-grid refined-analytics-grid">
+        <section className="panel analytics-week"><div className="analytics-panel-head"><div><span className="eyebrow">РИТМ / 7 ДНЕЙ</span><h2>Динамика недели</h2></div><TrendingUp className="od-icon"/></div><p>Завершённые задачи по дням.</p><WeeklyChart days={summary.daily_progress}/></section>
+        <section className="panel completion-panel"><span className="eyebrow">ОТ ЗАМЫСЛА К РЕЗУЛЬТАТУ</span><h2>Общий прогресс</h2><ProgressRing value={summary.completion_rate} label="Доля завершённых задач"/><p><strong>{summary.completed_tasks}</strong> из <strong>{summary.total_tasks}</strong> задач выполнено</p><span className="muted">{summary.total_tasks===0?'Создайте задачу, чтобы начать.':summary.completed_tasks===summary.total_tasks?'Всё запланированное завершено.':'Каждая завершённая задача — шаг вперёд.'}</span><a href="/tasks" className="text-link">К задачам <ArrowUpRight className="od-icon"/></a></section>
+        <section className="panel analytics-categories refined-categories"><div className="analytics-panel-head"><div><span className="eyebrow">НАПРАВЛЕНИЯ</span><h2>По категориям</h2></div><BarChart3 className="od-icon"/></div><p>Распределение всех ваших задач.</p>{summary.categories.length?<ul>{summary.categories.map((category,index)=><li key={category.category}><div><strong>{category.category}</strong><span className="od-nowrap">{category.count} · {category.percent}%</span></div><div className="category-track" role="progressbar" aria-label={category.category} aria-valuenow={category.percent} aria-valuemin={0} aria-valuemax={100}><m.span initial={{scaleX:reduced?category.percent/100:0}} animate={{scaleX:category.percent/100}} transition={{duration:reduced?0:.38,delay:reduced?0:index*.04}} style={{width:'100%',transformOrigin:'left',background:index%2?'var(--blue)':'var(--violet)'}}/></div></li>)}</ul>:<div className="analytics-empty">Добавьте задачи, чтобы увидеть распределение.</div>}</section>
+        {profile&&<section className="panel rhythm-panel"><span className="eyebrow">ПОСЛЕДОВАТЕЛЬНОСТЬ</span><h2>Личный ритм</h2><div className="rhythm-metric od-stat"><strong className="metric od-nowrap">{profile.stats.streak_days}</strong><span>дней текущей серии</span></div><p>Продолжайте двигаться в своём темпе.</p><a className="text-link" href="/profile">Открыть профиль <ArrowUpRight className="od-icon"/></a></section>}
+      </div>
+    </div>}
+  </div>;
 }
-
-export default function Analytics() {
-  const [authed, setAuthed] = useState(false);
-  const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    setAuthed(requireAuth());
-  }, []);
-
-  useEffect(() => {
-    if (!authed) {
-      return;
-    }
-    Promise.all([api.analytics.summary(), api.profile.get()])
-      .then(([summaryData, profileData]) => {
-        setSummary(summaryData);
-        setProfile(profileData);
-      })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'Не удалось загрузить статистику.');
-      });
-  }, [authed]);
-
-  if (!authed) {
-    return null;
-  }
-
-  if (error) {
-    return (
-      <div className="flex-1 px-8 py-6">
-        <h1 className="text-xl font-semibold text-text">Аналитика</h1>
-        <p role="alert" className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
-          {error}
-        </p>
-      </div>
-    );
-  }
-
-  if (!summary || !profile) {
-    return (
-      <div className="flex-1 px-8 py-6">
-        <h1 className="text-xl font-semibold text-text">Аналитика</h1>
-        <p className="mt-4 text-sm text-text-muted">Загрузка…</p>
-      </div>
-    );
-  }
-
-  const dailyValues = summary.daily_progress.map((d) => d.completed);
-  const dayLabels = summary.daily_progress.map((d) =>
-    new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short' }).format(new Date(`${d.day}T00:00:00`)),
-  );
-  const donutCategories = summary.categories.map((c) => ({ label: c.category, value: c.percent }));
-
-  const achievements = [
-    { emoji: '\u{1F525}', title: 'Серия продуктивности', subtitle: `${profile.stats.streak_days} дн. подряд` },
-    {
-      emoji: '\u{1F3C6}',
-      title: 'Мастер выполнения',
-      subtitle: `${profile.stats.completed_tasks} выполненных задач`,
-    },
-    { emoji: '\u2B50', title: 'Уровень', subtitle: `Уровень ${profile.user.level} — ${profile.user.xp} XP` },
-  ];
-
-  return (
-    <div className="flex-1 px-8 py-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-text">Аналитика</h1>
-        <span className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs text-text-muted">
-          Последние 7 дней
-        </span>
-      </div>
-
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard icon={ListChecks} label="Всего задач" value={String(summary.total_tasks)} />
-        <StatCard icon={CheckCircle2} label="Выполнено" value={String(summary.completed_tasks)} />
-        <StatCard icon={Percent} label="Процент выполнения" value={`${summary.completion_rate}%`} />
-      </div>
-
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-border bg-surface p-5">
-          <h2 className="text-sm font-semibold text-text">Выполнено по дням</h2>
-          <div className="mt-4">
-            <LineChart values={dailyValues} />
-            <div className="mt-1 flex justify-between text-[10px] text-text-muted">
-              {dayLabels.map((d) => (
-                <span key={d}>{d}</span>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-border bg-surface p-5">
-          <h2 className="text-sm font-semibold text-text">Категории</h2>
-          <div className="mt-4 flex items-center gap-6">
-            <DonutChart categories={donutCategories} />
-            <ul className="flex flex-1 flex-col gap-2 text-xs">
-              {summary.categories.length === 0 && (
-                <li className="text-text-muted">Пока нет задач</li>
-              )}
-              {summary.categories.map((c, i) => (
-                <li key={c.category} className="flex items-center justify-between gap-3 text-text-muted">
-                  <span className="flex items-center gap-2">
-                    <span
-                      className="h-2 w-2 rounded-full"
-                      style={{ backgroundColor: categoryColors[i % categoryColors.length] }}
-                    />
-                    {c.category}
-                  </span>
-                  <span className="font-medium text-text">{c.percent}%</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-6 rounded-2xl border border-border bg-surface p-5">
-        <h2 className="text-sm font-semibold text-text">Топ достижений</h2>
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {achievements.map((a) => (
-            <div key={a.title} className="flex items-center gap-3 rounded-xl bg-surface-2 p-3">
-              <span className="text-2xl">{a.emoji}</span>
-              <div>
-                <p className="text-xs font-semibold text-text">{a.title}</p>
-                <p className="text-[11px] text-text-muted">{a.subtitle}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-interface StatCardProps {
-  icon: typeof ListChecks;
-  label: string;
-  value: string;
-}
-
-function StatCard({ icon: Icon, label, value }: StatCardProps) {
-  return (
-    <div className="flex items-center gap-4 rounded-2xl border border-border bg-surface p-5">
-      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
-        <Icon size={19} />
-      </span>
-      <div>
-        <p className="text-xs text-text-muted">{label}</p>
-        <div className="flex items-baseline gap-2">
-          <span className="text-xl font-semibold text-text">{value}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
+export default function Analytics(){return <MotionScope><AnalyticsContent/></MotionScope>;}

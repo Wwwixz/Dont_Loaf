@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "markdown-document",
+  "title": "frontend/test-results/product-неверный-пароль-ос-22a6a-форме-вход-и-выход-работают/error-context.md",
+  "entry": "frontend/test-results/product-неверный-пароль-ос-22a6a-форме-вход-и-выход-работают/error-context.md",
+  "renderer": "markdown",
+  "status": "complete",
+  "exports": [
+    "md",
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-10-23T23:27:49.150Z",
+  "updatedAt": "2026-10-23T23:27:49.150Z",
+  "metadata": {
+    "inferred": true
+  }
+}

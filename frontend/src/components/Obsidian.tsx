@@ -1,230 +1,96 @@
+﻿import { ConfirmDialog, MotionScope } from './MotionUI';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Search, Plus, FileText, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, BookOpen, Check, FileText, Plus, Save, Search, Trash2 } from 'lucide-react';
 import { api, requireAuth } from '../lib/api';
 import type { Note } from '../lib/api';
 
-export default function Obsidian() {
+function ObsidianContent() {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [authed, setAuthed] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [savedFlash, setSavedFlash] = useState(false);
-  const titleRef = useRef<HTMLInputElement | null>(null);
-
-  // Выбор первой заметки — только при первой загрузке: поздний ответ сервера
-  // не должен сбрасывать то, что пользователь уже открыл или создал.
-  const didInitialLoad = useRef(false);
-
-  const loadNotes = useCallback(async () => {
-    setIsLoading(true);
-    setError('');
+  const [saved, setSaved] = useState(false);
+  const [mobileEditor, setMobileEditor] = useState(false);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const loaded = useRef(false);
+  function populate(note: Note | null) { setTitle(note?.title ?? ''); setContent(note?.content ?? ''); setSaved(false); }
+  const load = useCallback(async () => {
+    setLoading(true); setError('');
     try {
-      const list = await api.notes.list();
-      setNotes(list);
-      if (!didInitialLoad.current) {
-        didInitialLoad.current = true;
-        setActiveId(list[0]?.id ?? null);
-        loadNoteIntoEditor(list[0] ?? null);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не удалось загрузить заметки.');
-    } finally {
-      setIsLoading(false);
-    }
+      const list = await api.notes.list(); setNotes(list);
+      if (!loaded.current) { loaded.current = true; setActiveId(list[0]?.id ?? null); populate(list[0] ?? null); }
+    } catch (err) { setError(err instanceof Error ? err.message : 'Не удалось загрузить заметки.'); }
+    finally { setLoading(false); }
   }, []);
-
-  useEffect(() => {
-    setAuthed(requireAuth());
-  }, []);
-
-  useEffect(() => {
-    if (authed) {
-      loadNotes();
-    }
-  }, [authed, loadNotes]);
-
-  const filtered = notes.filter((n) => n.title.toLowerCase().includes(query.toLowerCase()));
-  const activeNote = notes.find((n) => n.id === activeId) ?? null;
-  const hasChanges =
-    activeNote !== null && (activeNote.title !== title || activeNote.content !== content);
-
-  // Поля редактора заполняются прямо в обработчиках (а не в useEffect по состоянию),
-  // иначе пост-отрисовочный эффект затирает то, что пользователь успел ввести.
-  function loadNoteIntoEditor(note: Note | null) {
-    setTitle(note?.title ?? '');
-    setContent(note?.content ?? '');
-    setSavedFlash(false);
+  useEffect(() => { setAuthed(requireAuth()); }, []);
+  useEffect(() => { if (authed) void load(); }, [authed, load]);
+  const active = notes.find(note => note.id === activeId) ?? null;
+  const dirty = !!active && (active.title !== title || active.content !== content);
+  const filtered = notes.filter(note => note.title.toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru')));
+  function select(note: Note) {
+    if (dirty && !window.confirm('Есть несохранённые изменения. Перейти к другой заметке?')) return;
+    setActiveId(note.id); populate(note); setMobileEditor(true);
   }
-
-  function selectNote(id: string) {
-    setActiveId(id);
-    loadNoteIntoEditor(notes.find((n) => n.id === id) ?? null);
-  }
-
-  async function createNote() {
+  async function create() {
+    if (dirty && !window.confirm('Есть несохранённые изменения. Создать новую заметку?')) return;
     setError('');
     try {
-      const note = await api.notes.create({ title: 'Новая заметка', content: '' });
-      setNotes((prev) => [note, ...prev]);
-      setActiveId(note.id);
-      loadNoteIntoEditor(note);
-      titleRef.current?.focus();
-      titleRef.current?.select();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не удалось создать заметку.');
-    }
+      const note = await api.notes.create({ title:'Новая заметка', content:'' });
+      setNotes(prev => [note, ...prev]); setActiveId(note.id); populate(note); setMobileEditor(true);
+      requestAnimationFrame(() => { titleRef.current?.focus(); titleRef.current?.select(); });
+    } catch (err) { setError(err instanceof Error ? err.message : 'Не удалось создать заметку.'); }
   }
-
-  async function saveNote() {
-    if (!activeId) {
-      return;
-    }
-    const trimmed = title.trim();
-    if (!trimmed) {
-      setError('У заметки должно быть название.');
-      return;
-    }
-    setIsSaving(true);
-    setError('');
+  async function save() {
+    if (!activeId) return;
+    if (!title.trim()) { setError('Введите название заметки, затем сохраните её.'); titleRef.current?.focus(); return; }
+    setSaving(true); setError('');
     try {
-      const updated = await api.notes.update(activeId, { title: trimmed, content });
-      setNotes((prev) => prev.map((n) => (n.id === updated.id ? updated : n)));
-      setTitle(updated.title);
-      setSavedFlash(true);
-      setTimeout(() => setSavedFlash(false), 2000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не удалось сохранить заметку.');
-    } finally {
-      setIsSaving(false);
-    }
+      const updated = await api.notes.update(activeId, { title:title.trim(), content });
+      setNotes(prev => prev.map(note => note.id === updated.id ? updated : note)); setTitle(updated.title); setSaved(true);
+      window.setTimeout(() => setSaved(false), 2500);
+    } catch (err) { setError(err instanceof Error ? err.message : 'Не удалось сохранить заметку.'); }
+    finally { setSaving(false); }
   }
-
-  async function deleteNote() {
-    if (!activeId || !window.confirm(`Удалить заметку «${title || 'Без названия'}»?`)) {
-      return;
-    }
+  async function remove() {
+    if (!activeId || deleting) return;
+    setDeleting(true);
+    setError('');
     try {
       await api.notes.remove(activeId);
-      const rest = notes.filter((n) => n.id !== activeId);
-      setNotes(rest);
-      setActiveId(rest[0]?.id ?? null);
-      loadNoteIntoEditor(rest[0] ?? null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не удалось удалить заметку.');
-    }
+      const rest = notes.filter(note => note.id !== activeId); setNotes(rest); setActiveId(rest[0]?.id ?? null); populate(rest[0] ?? null); setMobileEditor(false); setConfirmDelete(false);
+    } catch (err) { setError(err instanceof Error ? err.message : 'Не удалось удалить заметку.'); } finally { setDeleting(false); }
   }
-
-  return (
-    <div className="flex flex-1">
-      <div className="w-72 shrink-0 border-r border-border px-5 py-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-text">Obsidian</h1>
-          <button
-            type="button"
-            onClick={createNote}
-            className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white hover:bg-primary-hover"
-            aria-label="Новая заметка"
-          >
-            <Plus size={16} />
-          </button>
-        </div>
-        <p className="mt-1 text-xs text-text-muted">Все заметки, идеи и мысли в одном месте</p>
-
-        <div className="relative mt-4">
-          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Поиск заметок..."
-            className="w-full rounded-lg border border-border bg-surface py-2 pl-9 pr-3 text-sm text-text outline-none focus:border-primary"
-          />
-        </div>
-
-        <ul className="mt-4 flex flex-col gap-1">
-          {isLoading && <li className="px-3 py-2 text-sm text-text-muted">Загрузка…</li>}
-          {!isLoading && filtered.length === 0 && (
-            <li className="px-3 py-2 text-sm text-text-muted">
-              {notes.length === 0 ? 'Заметок пока нет' : 'Ничего не найдено'}
-            </li>
-          )}
-          {filtered.map((note) => (
-            <li key={note.id}>
-              <button
-                type="button"
-                onClick={() => selectNote(note.id)}
-                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                  activeId === note.id ? 'bg-primary/10 font-medium text-primary' : 'text-text-muted hover:bg-surface-2'
-                }`}
-              >
-                <FileText size={15} className="shrink-0" />
-                <span className="truncate">{note.title}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="flex-1 px-8 py-6">
-        {error && (
-          <p role="alert" className="mb-4 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
-            {error}
-          </p>
-        )}
-
-        {!activeNote ? (
-          <div className="rounded-2xl border border-border bg-surface p-8 text-sm text-text-muted">
-            {notes.length === 0
-              ? 'Создайте первую заметку — нажмите «+» слева.'
-              : 'Выберите заметку слева.'}
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4">
-            <input
-              ref={titleRef}
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Название заметки"
-              className="w-full rounded-lg border border-transparent bg-transparent px-0 text-lg font-semibold text-text outline-none focus:border-border focus:px-3 focus:py-2"
-            />
-
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Текст заметки…"
-              rows={16}
-              className="w-full resize-y rounded-2xl border border-border bg-surface p-6 text-sm leading-relaxed text-text-muted outline-none focus:border-primary"
-            />
-
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={saveNote}
-                disabled={isSaving || !hasChanges}
-                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-opacity hover:bg-primary-hover disabled:opacity-50"
-              >
-                <Save size={15} />
-                {isSaving ? 'Сохранение…' : 'Сохранить'}
-              </button>
-              <button
-                type="button"
-                onClick={deleteNote}
-                className="flex items-center gap-2 rounded-lg border border-rose-200 px-4 py-2 text-sm font-medium text-rose-500 hover:bg-rose-50"
-              >
-                <Trash2 size={15} />
-                Удалить
-              </button>
-              {savedFlash && <span className="text-xs text-text-muted">Сохранено ✓</span>}
-            </div>
-          </div>
-        )}
-      </div>
+  return <div id="main-content" tabIndex={-1} className="app-main notes-page">
+    <div className="page-head"><div><span className="app-kicker">ИДЕИ И КОНТЕКСТ / 04</span><h1 className="app-heading">Заметки<span className="heading-period">.</span></h1><p className="app-subtitle">Место для мыслей, которые помогают двигаться дальше.</p></div><button type="button" className="btn btn-primary" onClick={() => void create()}><Plus size={18} aria-hidden="true"/> Новая заметка</button></div>
+    {error && <div className="notice notes-error" role="alert">{error}</div>}
+    <div className={`notes-layout panel ${mobileEditor ? 'mobile-editor-open' : ''}`}>
+      <aside className="notes-list" aria-label="Список заметок">
+        <div className="notes-list-head"><span>ВАША БИБЛИОТЕКА</span><span>{notes.length}</span></div>
+        <label className="search-field"><Search size={16} aria-hidden="true"/><span className="sr-only">Поиск заметок</span><input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Поиск по названию"/></label>
+        {loading ? <div className="notes-skeleton"><span className="skeleton"/><span className="skeleton"/><span className="skeleton"/></div> : filtered.length ? <ul>{filtered.map(note => <li key={note.id}><button type="button" aria-current={activeId === note.id ? 'true' : undefined} onClick={() => select(note)}><FileText size={17} aria-hidden="true"/><span><strong className="od-truncate">{note.title}</strong><small>{new Intl.DateTimeFormat('ru-RU', { day:'numeric',month:'short' }).format(new Date(note.updated_at))}</small></span></button></li>)}</ul> : !error && <div className="notes-list-empty">{query ? 'Ничего не найдено' : 'Заметок пока нет'}{query && <button type="button" onClick={() => setQuery('')}>Сбросить поиск</button>}</div>}
+      </aside>
+      <section className="notes-editor" aria-label="Редактор заметки">
+        <button type="button" className="notes-mobile-back" onClick={() => setMobileEditor(false)}><ArrowLeft size={16} aria-hidden="true"/> К списку</button>
+        {!active ? <div className="notes-empty"><BookOpen size={34} color="var(--violet)" aria-hidden="true"/><h2>{notes.length ? 'Выберите заметку' : 'Здесь начинаются идеи'}</h2><p>{notes.length ? 'Откройте заметку из списка слева.' : 'Создайте первую заметку, чтобы сохранить мысль или план.'}</p><button type="button" className="btn btn-primary" onClick={() => void create()}>Создать заметку</button></div> :
+        <>
+          <div className="notes-editor-top"><span className="eyebrow">РАБОЧИЙ ЛИСТ</span><span>{dirty ? 'ЕСТЬ ИЗМЕНЕНИЯ' : saved ? 'СОХРАНЕНО' : 'БЕЗ ИЗМЕНЕНИЙ'}</span></div>
+          <label className="sr-only" htmlFor="note-title">Название заметки</label><input ref={titleRef} id="note-title" className="notes-title" value={title} onChange={e => { setTitle(e.target.value); setSaved(false); }} maxLength={200} placeholder="Название заметки"/>
+          <div className="notes-meta">Обновлено {new Intl.DateTimeFormat('ru-RU', { day:'numeric',month:'long',year:'numeric' }).format(new Date(active.updated_at))}</div>
+          <label className="sr-only" htmlFor="note-content">Текст заметки</label><textarea id="note-content" className="notes-content" value={content} onChange={e => { setContent(e.target.value); setSaved(false); }} placeholder="Начните писать здесь…" rows={16}/>
+          <div className="notes-editor-actions"><button className="btn btn-primary" type="button" onClick={() => void save()} disabled={saving || !dirty}><Save size={16} aria-hidden="true"/>{saving ? 'Сохранение…' : 'Сохранить'}</button>{saved && <span className="notes-saved"><Check size={15} aria-hidden="true"/> Сохранено</span>}<button className="icon-btn notes-delete" type="button" onClick={() => setConfirmDelete(true)} disabled={deleting} aria-label="Удалить заметку"><Trash2 size={17}/></button></div>
+        </>}
+      </section>
     </div>
-  );
+    <ConfirmDialog open={confirmDelete} title="Удалить заметку?" description={`«${title}» будет удалена без возможности восстановления.`} busy={deleting} error={error} onCancel={() => setConfirmDelete(false)} onConfirm={() => void remove()}/>
+  </div>;
 }
+
+export default function Obsidian() { return <MotionScope><ObsidianContent/></MotionScope>; }
+

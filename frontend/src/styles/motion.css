@@ -1,0 +1,20 @@
+:root{--motion-fast:180ms;--motion-normal:260ms;--motion-slow:380ms;--motion-exit:160ms;--motion-stagger:40ms}
+@view-transition{navigation:auto}
+::view-transition-old(root){animation:pageOut var(--motion-exit) ease-in both}
+::view-transition-new(root){animation:pageEnter var(--motion-slow) var(--ease) both}
+.app-main{animation:pageEnter var(--motion-slow) var(--ease) both}
+@keyframes pageEnter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pageOut{to{opacity:0}}
+@media(hover:hover){.sidebar-nav a:hover .od-icon{transform:translateX(2px)}.btn:hover .od-icon{transform:translateX(2px)}}
+.sidebar-nav .od-icon,.btn .od-icon{transition:transform var(--motion-fast) var(--ease)}
+.btn:disabled,.icon-btn:disabled{cursor:not-allowed;opacity:.55;transform:none}
+.progress-orbit{display:grid;place-items:center;width:120px;aspect-ratio:1;flex:none}
+.progress-orbit>*{grid-area:1/1}.progress-orbit svg{display:block;width:100%;height:auto;transform:none}
+.progress-orbit-value{font:600 32px/1 var(--font-display);letter-spacing:-.05em}.progress-orbit-value small{font-size:16px;color:var(--violet);margin-left:2px}
+.progress-orbit-small{width:88px}.progress-orbit-small .progress-orbit-value{font-size:24px}
+.confirm-dialog{padding:0;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);color:var(--text);width:min(460px,calc(100% - 32px));max-height:calc(100dvh - 48px);box-shadow:0 32px 100px #0009}
+.confirm-dialog::backdrop{background:#05070dbc}.confirm-content{padding:28px}.confirm-content h2{font-size:28px;line-height:1.2;margin:24px 0 16px}.confirm-content p{color:var(--muted);overflow-wrap:anywhere}.confirm-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:28px}
+.status-announcement{min-height:24px;color:var(--muted);font-size:13px}.sync-indicator{display:inline-flex;align-items:center;gap:8px}.sync-indicator:before{content:'';display:block;width:6px;height:6px;border-radius:50%;background:var(--violet)}
+.skip-link{position:fixed;top:8px;left:8px;z-index:1000;background:var(--violet);color:var(--bg);padding:12px 20px;transform:translateY(-150%)}.skip-link:focus{transform:none}
+@media(prefers-reduced-motion:reduce){.app-main{animation:none}::view-transition-old(root),::view-transition-new(root){animation:none}}
+html[data-motion=reduced] .app-main{animation:none}html[data-motion=reduced]::view-transition-old(root),html[data-motion=reduced]::view-transition-new(root){animation:none}
